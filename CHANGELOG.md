@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- Native HA-Icon-Auswahl mit Suche und Vorschau für Kartenkopf, Geräte, Statusfelder und Subbuttons.
+- Optionale Subbuttons im Kartenkopf mit aufklappbarem Editor, Sortierung und Entfernen.
+- Hintergrundfarbe, Deckkraft und Schrift-/Iconfarbe je Subbutton.
+- Native HA-Aktionsauswahl für Tippen und Halten: keine Aktion, Details, Umschalten oder Aktion ausführen.
+- Script-Entitäten erhalten als Vorbelegung script.turn_on; bestehende Geräte-/Statuskonfiguration bleibt erhalten.
+
 ## 0.1.1
 
 - Standarddarstellung an die vorhandenen Raumkarten angepasst: Verlauf, 24-px-Rahmen, Titel mit Trennlinie, kompakte Geräte- und Statuskacheln.

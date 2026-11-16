@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 class Element {
-  constructor(tag) { this.tagName=tag; this.children=[]; this.dataset={}; this.attributes={}; this.listeners={}; this.events=[]; }
+  constructor(tag) { this.tagName=tag; this.children=[]; this.dataset={}; this.attributes={}; this.listeners={}; this.events=[]; this.style={}; }
   attachShadow() { return this.shadowRoot=new Element('shadow'); }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children=children; }
@@ -120,4 +120,61 @@ test('brightness shown as percent; explicit names and config remain unchanged',(
   assert.equal(all(device).find(n=>n.className==='state').textContent,'50 %');
   assert.equal(all(device).find(n=>n.className==='name').textContent,'Nanoleaf');
   assert.equal(JSON.stringify(config),original);
+});
+test('subbuttons retain colors, opacity and old device settings',()=>{
+  const {card}=setup();const config={devices:['light.test'],subbuttons:[{name:'AUTO',entity:'script.auto',background_color:'#ff0000',text_color:'#ffffff',background_opacity:.4}]};
+  card.setConfig(config);const button=all(card.shadowRoot).find(n=>n.className==='subbutton');
+  assert.equal(button.style.backgroundColor,'rgba(255,0,0,0.4)');assert.equal(button.style.color,'#ffffff');
+  assert.equal(card._config.devices[0].action,'toggle');assert.equal(config.subbuttons[0].tap_action,undefined);
+});
+test('subbutton script defaults and selected service targets are executed exactly',async()=>{
+  const {card,hass}=setup();const calls=[];hass.callService=async(...args)=>calls.push(args);
+  card.setConfig({subbuttons:[{name:'AUTO',entity:'script.auto'}]});
+  await card._subAction(card._config.subbuttons[0],card._config.subbuttons[0].tap_action,0);
+  assert.equal(JSON.stringify(calls),JSON.stringify([['script','turn_on',{}, {entity_id:'script.auto'}]]));
+  const action={action:'perform-action',perform_action:'light.turn_on',data:{brightness_pct:30},target:{entity_id:'light.test'}};
+  await card._subAction(card._config.subbuttons[0],action,0);
+  assert.equal(JSON.stringify(calls[1]),JSON.stringify(['light','turn_on',{brightness_pct:30},{entity_id:'light.test'}]));
+});
+test('subbutton validation blocks malformed colors, opacity and unsupported toggles',()=>{
+  const {card}=setup();
+  assert.throws(()=>card.setConfig({subbuttons:[{background_color:'red;display:none'}]}));
+  assert.throws(()=>card.setConfig({subbuttons:[{background_opacity:2}]}));
+  assert.throws(()=>card.setConfig({subbuttons:[{entity:'sensor.test',tap_action:{action:'toggle'}}]}));
+});
+test('icon selectors emit selected icons and allow clearing them',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({devices:['light.test'],statuses:['sensor.test']});
+  const forms=all(editor.shadowRoot).filter(n=>n.tagName==='ha-form' && n.schema?.[0]?.selector?.icon);
+  assert.equal(forms.length,3);
+  forms[0].listeners['value-changed']({stopPropagation(){},detail:{value:{icon:'mdi:sofa'}}});assert.equal(editor._config.icon,'mdi:sofa');
+  forms[0].listeners['value-changed']({stopPropagation(){},detail:{value:{icon:''}}});assert.equal(editor._config.icon,'');
+});
+test('subbutton editor adds entries and saves colors and native actions',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({});
+  all(editor.shadowRoot).find(n=>n.textContent==='Subbutton hinzufügen').listeners.click();
+  assert.equal(editor._config.subbuttons.length,1);
+  const color=all(editor.shadowRoot).find(n=>n.tagName==='input' && n.type==='color');color.value='#123456';color.listeners.change();
+  assert.equal(editor.events.at(-1).detail.config.subbuttons[0].background_color,'#123456');
+  const form=all(editor.shadowRoot).find(n=>n.tagName==='ha-form' && n.schema?.[0]?.selector?.ui_action);
+  const action={action:'perform-action',perform_action:'script.turn_on',target:{entity_id:'script.auto'}};
+  form.listeners['value-changed']({stopPropagation(){},detail:{value:{tap_action:action,hold_action:{action:'none'}}}});
+  assert.equal(editor.events.at(-1).detail.config.subbuttons[0].tap_action.perform_action,'script.turn_on');
+});
+test('subbutton hold does not trigger a second tap action',async()=>{
+  const {card,calls}=setup();card.setConfig({subbuttons:[{entity:'light.test',tap_action:{action:'toggle'},hold_action:{action:'more-info'}}]});
+  const button=all(card.shadowRoot).find(n=>n.className==='subbutton');button.listeners.pointerdown({button:0});await new Promise(resolve=>setTimeout(resolve,550));button.listeners.pointerup();button.listeners.click();
+  assert.equal(calls.length,0);assert.equal(card.events.at(-1).type,'hass-more-info');
+});
+test('assigning a script to a new subbutton preselects script.turn_on',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({});
+  all(editor.shadowRoot).find(n=>n.textContent==='Subbutton hinzufügen').listeners.click();
+  const form=all(editor.shadowRoot).find(n=>n.tagName==='ha-form' && n.schema?.[0]?.selector?.entity);
+  form.listeners['value-changed']({stopPropagation(){},detail:{value:{entity:'script.auto'}}});
+  assert.equal(editor._config.subbuttons[0].tap_action.perform_action,'script.turn_on');
+  assert.equal(editor._config.subbuttons[0].tap_action.target.entity_id,'script.auto');
+});
+test('subbutton service failures are visible and release the pending state',async()=>{
+  const {card,hass}=setup();hass.callService=async()=>{throw Error('Nicht erlaubt');};
+  card.setConfig({subbuttons:[{entity:'script.auto'}]});await card._subAction(card._config.subbuttons[0],card._config.subbuttons[0].tap_action,0);
+  assert.match(card._error,/Nicht erlaubt/);assert.equal(card._busy.size,0);
 });
