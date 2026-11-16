@@ -9,6 +9,7 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children=children; }
   setAttribute(k,v) { this.attributes[k]=v; }
+  removeAttribute(k) { delete this.attributes[k]; }
   addEventListener(k,fn) { this.listeners[k]=fn; }
   dispatchEvent(e) { this.events.push(e); return true; }
 }
@@ -25,7 +26,7 @@ function setup() {
   };
   const hass={states,callService:async(...args)=>calls.push(args)};
   card.hass=hass;
-  return {card,calls,hass,registry};
+  return {card,calls,hass,registry,window:context.window};
 }
 function all(node) {return [node,...node.children.flatMap(all)];}
 test('devices and statuses share one card; statuses can open details but never toggle',()=>{
@@ -34,7 +35,7 @@ test('devices and statuses share one card; statuses can open details but never t
   const nodes=all(card.shadowRoot);
   assert.equal(nodes.filter(n=>n.tagName==='ha-card').length,1);
   assert.equal(nodes.filter(n=>n.className?.includes('status') && n.dataset.entity).length,2);
-  assert.equal(nodes.filter(n=>n.tagName==='button').length,3);
+  assert.equal(nodes.filter(n=>n.tagName==='button').length,4);
   assert.equal(card._config.statuses[0].action,'more-info');
   assert.equal(card._config.statuses[0].hold_action,'none');
 });
@@ -77,20 +78,21 @@ test('editor entity selection adds to correct section and status offers only non
   let fields=all(editor.shadowRoot).filter(n=>n.tagName==='label' && n.children[0]?.textContent==='Entität hinzufügen');
   let input=fields[1].children[1];input.value='sensor.test';input.listeners.change();
   assert.equal(editor._config.statuses[0].entity,'sensor.test');assert.equal(editor._config.devices.length,0);
-  assert.equal(all(editor.shadowRoot).filter(n=>n.tagName==='select').length,2);
-  assert.equal(all(editor.shadowRoot).some(n=>n.tagName==='option' && n.value==='toggle'),false);
+  const form=all(editor.shadowRoot).find(n=>n.tagName==='ha-form' && n.schema?.[0]?.name==='action');
+  assert.equal(form.schema.length,2);
+  assert.equal(form.schema[0].selector.ui_action.actions.includes('toggle'),false);
 });
 
 test('per-button tap and hold choices persist through the visual editor',()=>{
   const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({devices:['light.test'],statuses:['sensor.test']});
-  const selects=all(editor.shadowRoot).filter(n=>n.tagName==='select');
-  selects[0].value='more-info';selects[0].listeners.change();selects[1].value='none';selects[1].listeners.change();
-  assert.equal(editor.events.at(-1).detail.config.devices[0].action,'more-info');
-  assert.equal(editor.events.at(-1).detail.config.devices[0].hold_action,'none');
+  const form=all(editor.shadowRoot).find(n=>n.tagName==='ha-form' && n.schema?.[0]?.name==='action');
+  form.listeners['value-changed']({stopPropagation(){},detail:{value:{...form.data,action:{action:'more-info'},hold_action:{action:'none'}}}});
+  assert.equal(editor.events.at(-1).detail.config.devices[0].action.action,'more-info');
+  assert.equal(editor.events.at(-1).detail.config.devices[0].hold_action.action,'none');
 });
 test('hold opens details without also triggering tap',async()=>{
   const {card,calls}=setup();card.setConfig({devices:['light.test']});
-  const tile=all(card.shadowRoot).find(n=>n.tagName==='button');
+  const tile=all(card.shadowRoot).find(n=>n.className==='text tile-main');
   tile.listeners.pointerdown({button:0});await new Promise(resolve=>setTimeout(resolve,550));
   tile.listeners.pointerup();tile.listeners.click();
   assert.equal(calls.length,0);assert.equal(card.events[0].type,'hass-more-info');
@@ -108,7 +110,7 @@ test('editor entries start collapsed and preserve open state on config updates',
 test('device layout has icon background and compact status layout does not',()=>{
   const {card}=setup();card.setConfig({devices:['light.test'],statuses:['sensor.test']});
   const nodes=all(card.shadowRoot);
-  assert.equal(nodes.filter(n=>n.className==='icon-cell').length,1);
+  assert.equal(nodes.filter(n=>n.className?.startsWith('icon-cell')).length,1);
   assert.equal(nodes.find(n=>n.dataset.entity==='light.test').dataset.domain,'light');
   assert.equal(nodes.find(n=>n.className==='section-title').textContent,'Status & Sensoren');
 });
@@ -177,4 +179,66 @@ test('subbutton service failures are visible and release the pending state',asyn
   const {card,hass}=setup();hass.callService=async()=>{throw Error('Nicht erlaubt');};
   card.setConfig({subbuttons:[{entity:'script.auto'}]});await card._subAction(card._config.subbuttons[0],card._config.subbuttons[0].tap_action,0);
   assert.match(card._error,/Nicht erlaubt/);assert.equal(card._busy.size,0);
+});
+test('device actions execute HDMI selection; icon opens details independently',async()=>{
+  const {card,hass}=setup();const calls=[];hass.callService=async(...args)=>calls.push(args);
+  hass.states['media_player.tv']={entity_id:'media_player.tv',state:'on',attributes:{}};
+  card.setConfig({devices:[{entity:'media_player.tv',action:{action:'perform-action',perform_action:'media_player.select_source',target:{entity_id:'media_player.tv'},data:{source:'HDMI'}},icon_action:'more-info'}]});
+  const nodes=all(card.shadowRoot);await card._activate(card._config.devices[0]);
+  nodes.find(n=>n.className==='icon-cell icon-button').listeners.click();
+  assert.equal(JSON.stringify(calls[0]),JSON.stringify(['media_player','select_source',{source:'HDMI'},{entity_id:'media_player.tv'}]));
+  assert.equal(card.events.at(-1).detail.entityId,'media_player.tv');assert.equal(calls.length,1);
+});
+test('status fields reject service calls and show explicit state labels',()=>{
+  const {card,hass}=setup();hass.states['binary_sensor.motion']={entity_id:'binary_sensor.motion',state:'on',attributes:{device_class:'motion'}};
+  card.setConfig({statuses:[{entity:'binary_sensor.motion',state_labels:{on:'Erkannt',off:'Frei'}}]});
+  assert.equal(all(card.shadowRoot).find(n=>n.className==='state').textContent,'Erkannt');
+  assert.throws(()=>card.setConfig({statuses:[{entity:'sensor.test',action:{action:'perform-action',perform_action:'light.turn_on'}}]}));
+});
+test('device classes provide motion and smoke labels without hardcoded entities',()=>{
+  const {card}=setup();
+  assert.equal(card._state({entity_id:'binary_sensor.any',state:'on',attributes:{device_class:'motion'}},true),'Erkannt');
+  assert.equal(card._state({entity_id:'binary_sensor.any',state:'off',attributes:{device_class:'smoke'}},true),'Normal');
+  assert.equal(card._state({entity_id:'binary_sensor.any',state:'on',attributes:{device_class:'smoke'}},true),'Alarm');
+});
+test('subbutton color rules follow state and fall back to base colors',()=>{
+  const {card,hass}=setup();const config={subbuttons:[{entity:'light.test',background_color:'#00ff00',state_colors:[{state:'on',background_color:'#ff0000',background_opacity:.85,text_color:'#ffffff'}]}]};
+  card.setConfig(config);let button=all(card.shadowRoot).find(n=>n.className==='subbutton');assert.equal(button.style.backgroundColor,'rgba(255,0,0,0.85)');
+  card.hass={...hass,states:{...hass.states,'light.test':{...hass.states['light.test'],state:'off'}}};
+  button=all(card.shadowRoot).find(n=>n.className==='subbutton');assert.equal(button.style.backgroundColor,'rgba(0,255,0,0.28)');
+});
+test('companion detection enables special layout only inside the app',()=>{
+  const {card,window}=setup();card.setConfig({name:'Room'});assert.equal(card.attributes.companion,undefined);
+  window.webkit={messageHandlers:{externalBus:{}}};card.setConfig({name:'Room'});assert.equal(card.attributes.companion,'');
+  const css=all(card.shadowRoot).find(n=>n.tagName==='style').textContent;assert.match(css,/@media\(max-width:600px\)/);assert.match(css,/min-height:38px/);
+  delete window.webkit;card.setConfig({name:'Room'});assert.equal(card.attributes.companion,undefined);
+});
+test('editor saves device service action and independent icon action without losing card_mod',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({devices:['light.test'],card_mod:{style:'.title{color:red}'}});
+  const form=all(editor.shadowRoot).find(n=>n.tagName==='ha-form' && n.schema?.[0]?.name==='action');assert.equal(form.schema.length,4);
+  const action={action:'perform-action',perform_action:'light.turn_on',data:{brightness_pct:20},target:{entity_id:'light.test'}};
+  form.listeners['value-changed']({stopPropagation(){},detail:{value:{...form.data,action,icon_action:{action:'none'}}}});
+  assert.equal(editor._config.devices[0].action.perform_action,'light.turn_on');assert.equal(editor._config.devices[0].icon_action.action,'none');assert.equal(editor._config.card_mod.style,'.title{color:red}');
+});
+test('state color rules are configurable through editor',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({subbuttons:[{entity:'light.test'}]});
+  all(editor.shadowRoot).find(n=>n.textContent==='Farbregel hinzufügen').listeners.click();
+  const colors=all(editor.shadowRoot).filter(n=>n.tagName==='input' && n.type==='color');
+  const activeBackground=colors[2];activeBackground.value='#dc2d2d';activeBackground.listeners.change();
+  assert.equal(editor._config.subbuttons[0].state_colors[0].background_color,'#dc2d2d');
+});
+test('unrelated HA updates preserve DOM during a hold gesture',()=>{
+  const {card,hass}=setup();card.setConfig({devices:['light.test']});const before=card.shadowRoot.children;
+  card.hass={...hass,states:{...hass.states,'sensor.other':{state:'123'}}};assert.equal(card.shadowRoot.children,before);
+});
+test('cancelled confirmation never executes a configured device action',async()=>{
+  const {card,calls,window}=setup();window.confirm=()=>false;card.setConfig({devices:[{entity:'light.test',action:{action:'toggle',confirmation:{text:'Bestätigen?'}}}]});
+  await card._activate(card._config.devices[0]);assert.equal(calls.length,0);
+});
+test('own state text mappings can be edited without dropping extra configuration',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;editor.setConfig({statuses:['sensor.test'],card_mod:{style:'keep'}});
+  const field=all(editor.shadowRoot).find(n=>n.tagName==='label' && n.children[0]?.textContent==='Zustand hinzufügen (z. B. on oder off)');
+  field.children[1].value='on';field.children[1].listeners.change();
+  const label=all(editor.shadowRoot).find(n=>n.tagName==='label' && n.children[0]?.textContent==='Anzeigetext');label.children[1].value='Erkannt';label.children[1].listeners.change();
+  assert.equal(editor.events.at(-1).detail.config.statuses[0].state_labels.on,'Erkannt');assert.equal(editor._config.card_mod.style,'keep');
 });

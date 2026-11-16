@@ -5,6 +5,17 @@
   const TOGGLE = new Set(['light', 'switch', 'input_boolean', 'fan']);
   const domain = (id) => id.split('.')[0];
   const clone = (v) => JSON.parse(JSON.stringify(v));
+  const actionObject = (value) => typeof value === 'string' ? { action: value } : value;
+  const actionKind = (value) => actionObject(value)?.action || 'none';
+  function checkAction(value, entity, readOnly = false) {
+    const action = actionObject(value);
+    const allowed = readOnly ? ['none', 'more-info'] : ['none', 'more-info', 'toggle', 'perform-action', 'navigate'];
+    if (!action || !allowed.includes(action.action)) throw new Error('Ungültige Aktion für diesen Bereich.');
+    if (action.action === 'toggle' && !TOGGLE.has(domain(entity || ''))) throw new Error('Diese Entität unterstützt hier kein Umschalten.');
+    if (action.action === 'more-info' && !entity) throw new Error('Für Details bitte eine Entität auswählen.');
+    if (action.action === 'perform-action' && action.perform_action && !/^[a-z_]+\.[a-z0-9_]+$/.test(action.perform_action)) throw new Error('Ungültiger Aktionsname.');
+    if (action.action === 'navigate' && action.navigation_path && (typeof action.navigation_path !== 'string' || !action.navigation_path.startsWith('/') || action.navigation_path.startsWith('//'))) throw new Error('Navigation benötigt einen lokalen Pfad beginnend mit /.');
+  }
   function normalize(config) {
     if (!config || typeof config !== 'object') throw new Error('Eine Kartenkonfiguration ist erforderlich.');
     const result = { ...clone(config), type: `custom:${TYPE}` };
@@ -19,15 +30,15 @@
         for (const field of ['name', 'icon']) {
           if (item[field] !== undefined && typeof item[field] !== 'string') throw new Error(`${field} muss Text sein.`);
         }
-        if (key === 'statuses' && item.action && !['none', 'more-info'].includes(item.action)) throw new Error('Statusfelder dürfen keine Bedienaktion enthalten.');
-        item.hold_action = item.hold_action || (key === 'devices' ? 'more-info' : 'none');
-        if (!['none', 'more-info', 'toggle'].includes(item.hold_action) || (item.hold_action === 'toggle' && (key === 'statuses' || !TOGGLE.has(domain(item.entity))))) throw new Error('Ungültige Aktion beim Halten.');
-        if (key === 'statuses') item.action = item.action || 'more-info';
-        if (key === 'devices') {
-          item.action = item.action || (['light', 'switch', 'input_boolean'].includes(domain(item.entity)) ? 'toggle' : 'more-info');
-          if (!['toggle', 'more-info', 'none'].includes(item.action)) throw new Error('Unbekannte Bedienaktion.');
-          if (item.action === 'toggle' && !TOGGLE.has(domain(item.entity))) throw new Error('Diese Entität unterstützt hier kein Umschalten. Bitte Details wählen.');
+        const readOnly = key === 'statuses';
+        item.action = item.action || (readOnly ? 'more-info' : ['light', 'switch', 'input_boolean'].includes(domain(item.entity)) ? 'toggle' : 'more-info');
+        item.hold_action = item.hold_action || (readOnly ? 'none' : 'more-info');
+        if (!readOnly) {
+          item.icon_action = item.icon_action || 'more-info';
+          item.icon_hold_action = item.icon_hold_action || 'none';
         }
+        for (const field of ['action', 'hold_action', ...(!readOnly ? ['icon_action', 'icon_hold_action'] : [])]) checkAction(item[field], item.entity, readOnly);
+        if (item.state_labels !== undefined && (!item.state_labels || typeof item.state_labels !== 'object' || Array.isArray(item.state_labels) || Object.values(item.state_labels).some((label) => typeof label !== 'string'))) throw new Error('Statustexte müssen Zustand/Text-Zuordnungen sein.');
         return item;
       });
     }
@@ -44,13 +55,14 @@
       if (typeof item.background_opacity !== 'number' || !Number.isFinite(item.background_opacity) || item.background_opacity < 0 || item.background_opacity > 1) throw new Error('Hintergrunddeckkraft muss zwischen 0 und 1 liegen.');
       item.tap_action = item.tap_action || (domain(item.entity || '') === 'script' ? { action: 'perform-action', perform_action: 'script.turn_on', target: { entity_id: item.entity } } : { action: TOGGLE.has(domain(item.entity || '')) ? 'toggle' : item.entity ? 'more-info' : 'none' });
       item.hold_action = item.hold_action || { action: item.entity ? 'more-info' : 'none' };
-      for (const key of ['tap_action', 'hold_action']) {
-        const action = item[key];
-        if (!action || typeof action !== 'object' || !['none', 'toggle', 'more-info', 'perform-action'].includes(action.action)) throw new Error('Ungültige Subbutton-Aktion.');
-        if (action.action === 'toggle' && !TOGGLE.has(domain(item.entity || ''))) throw new Error('Diese Subbutton-Entität unterstützt kein Umschalten.');
-        if (action.action === 'more-info' && !item.entity) throw new Error('Für Details eine Subbutton-Entität auswählen.');
-        if (action.action === 'perform-action' && action.perform_action && !/^[a-z_]+\.[a-z0-9_]+$/.test(action.perform_action)) throw new Error('Ungültige Aktion.');
-      }
+      for (const key of ['tap_action', 'hold_action']) checkAction(item[key], item.entity);
+      if (item.state_colors !== undefined && !Array.isArray(item.state_colors)) throw new Error('state_colors muss eine Liste sein.');
+      item.state_colors = (item.state_colors || []).map((rule) => {
+        if (!rule || typeof rule.state !== 'string') throw new Error('Farbregel benötigt einen Zustand.');
+        for (const key of ['background_color', 'text_color']) if (rule[key] !== undefined && !/^#[0-9a-f]{6}$/i.test(rule[key])) throw new Error('Farben bitte als #RRGGBB angeben.');
+        if (rule.background_opacity !== undefined && (typeof rule.background_opacity !== 'number' || !Number.isFinite(rule.background_opacity) || rule.background_opacity < 0 || rule.background_opacity > 1)) throw new Error('Ungültige Deckkraft in Farbregel.');
+        return rule;
+      });
       return item;
     });
     return result;
@@ -78,10 +90,12 @@
     .statuses{margin-top:16px;padding-top:12px;border-top:1px solid rgba(145,170,190,.12)}.statuses.without-devices{margin-top:0;padding-top:0;border-top:0}
     .section-title{font-size:9px;font-weight:600;color:var(--room-control-muted,#8095a5);margin:0 2px 10px;text-transform:uppercase;letter-spacing:.12em}
     .status{height:46px;padding:8px 10px;gap:7px;border-radius:12px;background:rgba(135,160,180,.035);border-color:rgba(145,170,190,.045)}.status>.icon{width:22px;--mdc-icon-size:17px;color:#8194a3}.status .name{font-size:10px;font-weight:500;color:var(--room-control-status-name,#6cdbc9)}.status .state{font-size:12px;font-weight:500;margin-top:0;color:#c9d6df}.status.active .icon,.status.active .state{color:var(--room-control-status-active,#7cd7b4)}
+    .tile-main{flex:1;min-width:0;text-align:start;font:inherit;color:inherit;background:transparent;border:0;padding:0;min-height:42px;cursor:pointer}.icon-cell.icon-button{border:0;padding:0;cursor:pointer}.tile-main:focus-visible,.icon-button:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+    @media(max-width:600px){:host([companion]) .heading{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}:host([companion]) .heading .header{margin:0;min-height:30px;gap:10px}:host([companion]) .header::after{display:none}:host([companion]) .title{font-size:20px;letter-spacing:.02em}:host([companion]) .subbuttons{width:100%;margin:0;gap:8px}:host([companion]) .subbutton{flex:1 1 0;min-width:54px;min-height:38px;border-radius:12px;font-size:12px}:host([companion]) .heading:has(.subbuttons){min-height:78px;padding:4px 0 6px}}
     .missing,.error{color:var(--error-color,#db4437)}.error{font-size:13px;margin:12px 0 0}.empty{color:var(--room-control-muted,#8293a2);font-size:14px;margin:0}
   `;
   class RoomControlCard extends HTMLElement {
-    constructor() { super(); this.attachShadow({ mode: 'open' }); this._busy = new Set(); }
+    constructor() { super(); this.attachShadow({ mode: 'open' }); this._busy = new Set(); this._timers = new Set(); }
     static async getConfigElement() {
       // Loading HA's entities editor also registers ha-form and its lazy selectors.
       if (!customElements.get('ha-form') && window.loadCardHelpers) {
@@ -94,116 +108,121 @@
     }
     static getStubConfig() { return { type: `custom:${TYPE}`, name: 'Raum', devices: [], statuses: [] }; }
     setConfig(config) { this._config = normalize(config); this._render(); }
-    set hass(value) { this._hass = value; this._render(); }
+    set hass(value) {
+      const previous = this._hass; this._hass = value;
+      const ids = this._config ? [...this._config.devices, ...this._config.statuses, ...this._config.subbuttons].map((item) => item.entity).filter(Boolean) : [];
+      // Unrelated state updates must not interrupt a hold gesture or remove card-mod styles.
+      if (!previous || previous.locale !== value.locale || ids.some((id) => previous.states[id] !== value.states[id])) this._render();
+    }
     getCardSize() { return 1 + Math.ceil((this._config?.devices.length || 0) / 2) + Math.ceil((this._config?.statuses.length || 0) / 2); }
     getGridOptions() { return { columns: 12, min_columns: 6, rows: 'auto' }; }
-    _state(state, status = false) {
+    _state(state, status = false, item = {}) {
       if (!state) return 'Entität nicht gefunden';
+      if (Object.prototype.hasOwnProperty.call(item.state_labels || {}, state.state)) return item.state_labels[state.state];
+      if (status && domain(item.entity || state.entity_id || '') === 'binary_sensor' && ['on', 'off'].includes(state.state)) {
+        const dc = state.attributes.device_class;
+        if (['motion', 'occupancy', 'presence'].includes(dc)) return state.state === 'on' ? 'Erkannt' : 'Frei';
+        if (['smoke', 'gas', 'safety', 'problem', 'moisture'].includes(dc)) return state.state === 'on' ? 'Alarm' : 'Normal';
+        if (['door', 'window', 'opening', 'garage_door'].includes(dc)) return state.state === 'on' ? 'Offen' : 'Geschlossen';
+      }
       if (!status && domain(state.entity_id || '') === 'light' && state.state === 'on' && Number.isFinite(state.attributes.brightness)) return `${Math.round(state.attributes.brightness / 2.55)} %`;
       if (this._hass.formatEntityState) return this._hass.formatEntityState(state);
       return `${state.state}${state.attributes.unit_of_measurement ? ' ' + state.attributes.unit_of_measurement : ''}`;
     }
     async _activate(item, action = item.action) {
-      const state = this._hass?.states[item.entity];
-      if (!state || ['unavailable', 'unknown'].includes(state.state) || this._busy.has(item.entity)) return;
-      if (action === 'more-info') {
-        this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: item.entity }, bubbles: true, composed: true }));
-      } else if (action === 'toggle' && TOGGLE.has(domain(item.entity))) {
-        this._busy.add(item.entity); this._error = ''; this._render();
-        try { await this._hass.callService(domain(item.entity), 'toggle', { entity_id: item.entity }); }
-        catch (error) { this._error = `Aktion fehlgeschlagen: ${error.message || error}`; }
-        finally { this._busy.delete(item.entity); this._render(); }
-      }
+      return this._executeAction(item, action, item.entity);
     }
-    _bindSubbutton(button, item, index) {
-      let timer, held = false;
-      const cancel = () => clearTimeout(timer);
-      button.addEventListener('pointerdown', (event) => {
-        if (event.button !== 0 || button.disabled) return;
-        held = false; timer = setTimeout(() => { held = true; this._subAction(item, item.hold_action, index); }, 500);
-      });
-      for (const event of ['pointerup', 'pointerleave', 'pointercancel']) button.addEventListener(event, cancel);
-      button.addEventListener('contextmenu', (event) => { event.preventDefault(); cancel(); });
-      button.addEventListener('click', () => { cancel(); if (!held) this._subAction(item, item.tap_action, index); held = false; });
-      button.addEventListener('keydown', (event) => { if (event.key === 'F10' && event.shiftKey) { event.preventDefault(); this._subAction(item, item.hold_action, index); } });
-    }
-    async _subAction(item, action, index) {
-      const busyKey = `subbutton:${index}`;
+    async _executeAction(item, value, busyKey) {
+      const action = actionObject(value);
       if (!action || action.action === 'none' || this._busy.has(busyKey)) return;
       const state = this._hass?.states[item.entity];
-      if (action.action === 'more-info') {
-        if (item.entity) this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: item.entity }, bubbles: true, composed: true }));
-        return;
-      }
-      if (action.action === 'toggle' && (!state || ['unknown', 'unavailable'].includes(state.state))) return;
+      if (action.action === 'toggle' && (!TOGGLE.has(domain(item.entity || '')) || !state || ['unknown', 'unavailable'].includes(state.state))) return;
       if (action.confirmation) {
         const exempt = action.confirmation.exemptions?.some((user) => user.user === this._hass.user?.id);
         if (!exempt && !window.confirm(action.confirmation.text || 'Aktion ausführen?')) return;
       }
+      if (action.action === 'more-info') {
+        if (item.entity) this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: item.entity }, bubbles: true, composed: true }));
+        return;
+      }
+      if (action.action === 'navigate') {
+        const path = action.navigation_path;
+        if (typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')) { window.history.pushState(null, '', path); window.dispatchEvent(new Event('location-changed')); }
+        return;
+      }
       this._busy.add(busyKey); this._error = ''; this._render();
       try {
-        if (action.action === 'toggle' && TOGGLE.has(domain(item.entity || ''))) await this._hass.callService(domain(item.entity), 'toggle', { entity_id: item.entity });
+        if (action.action === 'toggle') await this._hass.callService(domain(item.entity), 'toggle', { entity_id: item.entity });
         else if (action.action === 'perform-action') {
-          if (!action.perform_action) throw new Error('Bitte eine Aktion im Subbutton auswählen.');
+          if (!action.perform_action) throw new Error('Bitte eine Aktion auswählen.');
           const [serviceDomain, service] = action.perform_action.split('.');
           await this._hass.callService(serviceDomain, service, action.data || {}, action.target || {});
         }
       } catch (error) { this._error = `Aktion fehlgeschlagen: ${error.message || error}`; }
       finally { this._busy.delete(busyKey); this._render(); }
     }
+    _bindGesture(button, tap, hold) {
+      let timer, held = false;
+      const cancel = () => { clearTimeout(timer); this._timers.delete(timer); };
+      button.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || button.disabled) return;
+        held = false; timer = setTimeout(() => { this._timers.delete(timer); held = true; hold(); }, 500); this._timers.add(timer);
+      });
+      for (const event of ['pointerup', 'pointerleave', 'pointercancel']) button.addEventListener(event, cancel);
+      button.addEventListener('contextmenu', (event) => { event.preventDefault(); cancel(); });
+      button.addEventListener('click', () => { cancel(); if (!held) tap(); held = false; });
+      button.addEventListener('keydown', (event) => { if (event.key === 'F10' && event.shiftKey) { event.preventDefault(); hold(); } });
+    }
+    disconnectedCallback() { for (const timer of this._timers) clearTimeout(timer); this._timers.clear(); }
+    _bindSubbutton(button, item, index) {
+      this._bindGesture(button, () => this._subAction(item, item.tap_action, index), () => this._subAction(item, item.hold_action, index));
+    }
+    async _subAction(item, action, index) { return this._executeAction(item, action, `subbutton:${index}`); }
     _subbuttons() {
       const group = el('div', 'subbuttons'); group.setAttribute('part', 'subbuttons');
       this._config.subbuttons.forEach((item, index) => {
         const button = el('button', 'subbutton'); button.type = 'button'; button.setAttribute('part', 'subbutton');
-        const rgb = item.background_color.slice(1).match(/../g).map((v) => parseInt(v, 16));
-        button.style.backgroundColor = `rgba(${rgb.join(',')},${item.background_opacity})`;
-        button.style.color = item.text_color;
+        const matched = item.state_colors.find((rule) => rule.state === this._hass.states[item.entity]?.state);
+        const colors = { ...item, ...matched };
+        const rgb = colors.background_color.slice(1).match(/../g).map((v) => parseInt(v, 16));
+        button.style.backgroundColor = `rgba(${rgb.join(',')},${colors.background_opacity})`;
+        button.style.color = colors.text_color;
         const label = item.name || this._hass.states[item.entity]?.attributes.friendly_name || 'Subbutton';
         button.setAttribute('aria-label', label);
         if (item.icon) button.append(icon(item.icon));
         if (item.name || !item.icon) button.append(el('span', '', label));
-        button.disabled = this._busy.has(`subbutton:${index}`) || (item.tap_action.action === 'none' && item.hold_action.action === 'none');
+        button.disabled = this._busy.has(`subbutton:${index}`) || (actionKind(item.tap_action) === 'none' && actionKind(item.hold_action) === 'none');
         this._bindSubbutton(button, item, index); group.append(button);
       });
       return group;
     }
     _tile(item, status) {
       const state = this._hass.states[item.entity];
-      const interactive = item.action !== 'none' || item.hold_action !== 'none';
-      const tile = el(interactive ? 'button' : 'div', `item ${status ? 'status' : 'device'}${['on', 'playing', 'cleaning', 'run'].includes(state?.state) ? ' active' : ''}${!state ? ' missing' : ''}`);
-      tile.dataset.entity = item.entity;
-      tile.dataset.domain = domain(item.entity);
-      tile.setAttribute('part', status ? 'status' : 'device');
-      if (interactive) {
-        tile.type = 'button';
-        tile.disabled = !state || ['unavailable', 'unknown'].includes(state.state) || this._busy.has(item.entity);
-        let timer, held = false;
-        const cancel = () => { clearTimeout(timer); timer = undefined; };
-        tile.addEventListener('pointerdown', (event) => {
-          if (event.button !== 0 || tile.disabled) return;
-          held = false;
-          timer = setTimeout(() => { held = true; this._activate(item, item.hold_action); }, 500);
-        });
-        tile.addEventListener('pointerup', cancel);
-        tile.addEventListener('pointerleave', cancel);
-        tile.addEventListener('pointercancel', cancel);
-        tile.addEventListener('contextmenu', (event) => { event.preventDefault(); cancel(); });
-        tile.addEventListener('click', () => { cancel(); if (!held) this._activate(item); held = false; });
-        tile.addEventListener('keydown', (event) => {
-          if (event.key === 'F10' && event.shiftKey) { event.preventDefault(); this._activate(item, item.hold_action); }
-        });
-      }
+      const interactive = actionKind(item.action) !== 'none' || actionKind(item.hold_action) !== 'none';
+      const tile = el(status && interactive ? 'button' : 'div', `item ${status ? 'status' : 'device'}${['on', 'playing', 'cleaning', 'run'].includes(state?.state) ? ' active' : ''}${!state ? ' missing' : ''}`);
+      tile.dataset.entity = item.entity; tile.dataset.domain = domain(item.entity); tile.setAttribute('part', status ? 'status' : 'device');
       const fallback = ({ light: 'mdi:lightbulb', switch: 'mdi:power-socket-eu', fan: 'mdi:fan', lock: 'mdi:lock', binary_sensor: 'mdi:checkbox-marked-circle-outline', sensor: 'mdi:gauge', media_player: 'mdi:television' })[domain(item.entity)] || 'mdi:circle-outline';
       const glyph = icon(item.icon || state?.attributes.icon || fallback);
-      if (status) tile.append(glyph);
-      else { const cell = el('span', 'icon-cell'); cell.append(glyph); tile.append(cell); }
-      const text = el('div', 'text');
-      text.append(el('div', 'name', item.name || state?.attributes.friendly_name || item.entity), el('div', 'state', this._state(state, status)));
-      tile.append(text);
-      return tile;
+      const unavailable = !state || ['unavailable', 'unknown'].includes(state.state);
+      if (status) {
+        tile.append(glyph);
+        if (interactive) { tile.type = 'button'; tile.disabled = unavailable; this._bindGesture(tile, () => this._activate(item), () => this._activate(item, item.hold_action)); }
+      } else {
+        const iconInteractive = actionKind(item.icon_action) !== 'none' || actionKind(item.icon_hold_action) !== 'none';
+        const cell = el(iconInteractive ? 'button' : 'span', `icon-cell${iconInteractive ? ' icon-button' : ''}`); cell.append(glyph);
+        if (iconInteractive) { cell.type = 'button'; cell.disabled = unavailable || this._busy.has(item.entity); cell.setAttribute('aria-label', `Icon: ${item.name || state?.attributes.friendly_name || item.entity}`); this._bindGesture(cell, () => this._activate(item, item.icon_action), () => this._activate(item, item.icon_hold_action)); }
+        tile.append(cell);
+      }
+      const text = el(!status && interactive ? 'button' : 'div', !status && interactive ? 'text tile-main' : 'text');
+      text.append(el('div', 'name', item.name || state?.attributes.friendly_name || item.entity), el('div', 'state', this._state(state, status, item)));
+      if (!status && interactive) { text.type = 'button'; text.disabled = unavailable || this._busy.has(item.entity); this._bindGesture(text, () => this._activate(item), () => this._activate(item, item.hold_action)); }
+      tile.append(text); return tile;
     }
     _render() {
       if (!this._config || !this._hass) return;
+      for (const timer of this._timers) clearTimeout(timer); this._timers.clear();
+      const companion = Boolean(window.webkit?.messageHandlers?.externalBus || window.externalApp?.externalBus || window.externalAppV2?.postMessage);
+      if (companion) this.setAttribute('companion', ''); else this.removeAttribute('companion');
       const style = el('style'); style.textContent = css;
       const card = el('ha-card');
       const heading = el('div', 'heading');
@@ -261,6 +280,47 @@
       const input = el('input'); input.type = 'color'; input.value = value;
       input.addEventListener('change', () => onChange(input.value)); wrap.append(input); return wrap;
     }
+    _actionsForm(item, fields, readOnly, onChange) {
+      const form = el('ha-form', 'field'); form.hass = this._hass;
+      const allowed = readOnly ? ['none', 'more-info'] : ['none', 'more-info', 'toggle', 'perform-action', 'navigate'];
+      const actions = allowed.filter((action) => action === 'more-info' ? Boolean(item.entity) : action === 'toggle' ? TOGGLE.has(domain(item.entity || '')) : true);
+      form.schema = fields.map(([name]) => ({ name, selector: { ui_action: { actions } } }));
+      form.data = Object.fromEntries(fields.map(([name]) => [name, actionObject(item[name])]));
+      form.context = { entity_id: item.entity };
+      form.computeLabel = (schema) => fields.find(([name]) => name === schema.name)?.[1] || schema.name;
+      form.addEventListener('value-changed', (event) => { event.stopPropagation(); onChange(event.detail.value); });
+      return form;
+    }
+    _stateColorEditor(body, item, update) {
+      const section = el('fieldset'); section.append(el('legend', '', 'Farben nach Zustand (optional)'));
+      section.append(el('p', 'hint', 'Die erste passende Regel ersetzt die Grundfarben. Ohne Treffer bleiben die Grundfarben erhalten. Zustände sind z. B. on oder off.'));
+      item.state_colors.forEach((rule, index) => {
+        const box = el('div', 'entry-body');
+        const change = (values) => { const rules = clone(this._config.subbuttons[item._index]?.state_colors || item.state_colors); Object.assign(rules[index], values); update({ state_colors: rules }); };
+        box.append(this._field('Zustand', rule.state, (state) => change({ state })));
+        box.append(this._colorField('Hintergrundfarbe', rule.background_color || item.background_color, (background_color) => change({ background_color })));
+        box.append(this._colorField('Schrift-/Iconfarbe', rule.text_color || item.text_color, (text_color) => change({ text_color })));
+        const opacity = this._field('Deckkraft (0–100 %)', String(Math.round((rule.background_opacity ?? item.background_opacity) * 100)), (value) => change({ background_opacity: Number(value) / 100 }));
+        opacity.children[1].type = 'number'; opacity.children[1].min = '0'; opacity.children[1].max = '100'; box.append(opacity);
+        box.append(this._button('Farbregel entfernen', () => { const rules = clone(this._config.subbuttons[item._index]?.state_colors || item.state_colors); rules.splice(index, 1); update({ state_colors: rules }, true); })); section.append(box);
+      });
+      section.append(this._button('Farbregel hinzufügen', () => update({ state_colors: [...(this._config.subbuttons[item._index]?.state_colors || item.state_colors), { state: 'on', background_color: item.background_color, background_opacity: item.background_opacity, text_color: item.text_color }] }, true)));
+      body.append(section);
+    }
+    _labelsEditor(body, key, index) {
+      const section = el('fieldset'); section.append(el('legend', '', 'Eigene Statustexte (optional)'));
+      const labels = this._config[key][index].state_labels || {};
+      const message = el('div', 'error'); message.setAttribute('role', 'alert');
+      Object.entries(labels).forEach(([state, label]) => {
+        const row = el('div', 'entry-body'); row.append(el('p', 'hint', `Zustand: ${state}`));
+        row.append(this._field('Anzeigetext', label, (text) => { this._config[key][index].state_labels[state] = text; this._emit(); }));
+        row.append(this._button('Statustext entfernen', () => { delete this._config[key][index].state_labels[state]; this._emit(); this._render(); })); section.append(row);
+      });
+      section.append(this._field('Zustand hinzufügen (z. B. on oder off)', '', (state) => {
+        if (!state || ['__proto__', 'constructor', 'prototype'].includes(state)) { message.textContent = 'Bitte einen gültigen Zustand angeben.'; return; }
+        this._config[key][index].state_labels = { ...labels, [state]: state }; this._emit(); this._render();
+      })); section.append(message); body.append(section);
+    }
     _subbuttonEditor(root) {
       const section = el('fieldset'); section.append(el('legend', '', 'Subbuttons'));
       section.append(el('p', 'hint', 'Kleine Aktionen im Kartenkopf. Farben, Icon sowie Tipp- und Halteaktion sind pro Button einstellbar.'));
@@ -281,7 +341,7 @@
         entityForm.addEventListener('value-changed', (event) => {
           event.stopPropagation(); const entity = event.detail.value.entity || '';
           const next = { entity };
-          if (!item.entity && item.tap_action.action === 'none' && item.hold_action.action === 'none') { next.tap_action = null; next.hold_action = null; }
+          if (!item.entity && actionKind(item.tap_action) === 'none' && actionKind(item.hold_action) === 'none') { next.tap_action = null; next.hold_action = null; }
           // Keep existing custom actions when replacing an assigned entity.
           update(next, true);
         }); body.append(entityForm);
@@ -290,13 +350,9 @@
         const opacity = this._field('Hintergrunddeckkraft (0–100 %)', String(Math.round(item.background_opacity * 100)), (value) => update({ background_opacity: Number(value) / 100 }));
         const opacityInput = opacity.children[1]; opacityInput.type = 'number'; opacityInput.min = '0'; opacityInput.max = '100'; opacityInput.step = '1'; body.append(opacity);
         body.append(this._colorField('Schrift-/Iconfarbe', item.text_color, (value) => update({ text_color: value })));
-        const actions = el('ha-form', 'field'); actions.hass = this._hass;
-        const allowed = ['none', 'more-info', 'toggle', 'perform-action'].filter((action) => action === 'none' || action === 'perform-action' || (action === 'more-info' ? Boolean(item.entity) : TOGGLE.has(domain(item.entity || ''))));
-        actions.schema = ['tap_action', 'hold_action'].map((name) => ({ name, selector: { ui_action: { actions: allowed } } }));
-        actions.data = { tap_action: item.tap_action, hold_action: item.hold_action };
-        actions.context = { entity_id: item.entity };
-        actions.computeLabel = (schema) => schema.name === 'tap_action' ? 'Beim Tippen' : 'Beim Halten';
-        actions.addEventListener('value-changed', (event) => { event.stopPropagation(); update(event.detail.value); }); body.append(actions, message);
+        body.append(this._actionsForm(item, [['tap_action', 'Beim Tippen'], ['hold_action', 'Beim Halten']], false, (values) => update(values)));
+        this._stateColorEditor(body, { ...item, _index: i }, update);
+        body.append(message);
         const bar = el('div', 'toolbar'); bar.append(this._button('Nach oben', () => this._move('subbuttons', i, i - 1), i === 0), this._button('Nach unten', () => this._move('subbuttons', i, i + 1), i === this._config.subbuttons.length - 1), this._button('Entfernen', () => { this._config.subbuttons.splice(i, 1); this._emit(); this._render(); })); body.append(bar); section.append(entry);
       });
       section.append(this._button('Subbutton hinzufügen', () => {
@@ -337,26 +393,18 @@
           body.append(this._field('Entität', item.entity, (value) => {
             try {
               const next = clone(this._config); next[key][i].entity = value;
-              if (key === 'devices' && !TOGGLE.has(domain(value))) {
-                if (next[key][i].action === 'toggle') next[key][i].action = 'more-info';
-                if (next[key][i].hold_action === 'toggle') next[key][i].hold_action = 'more-info';
-              }
               this._config = normalize(next); this._emit(); this._render();
             } catch (error) { message.textContent = error.message; }
           }, this._listId));
           const message = el('div', 'error'); message.setAttribute('role','alert'); body.append(message);
           body.append(this._field('Anzeigename (optional)', item.name, (value) => { this._config[key][i].name = value; this._emit(); this._render(); }));
           body.append(this._iconField('Icon (optional)', item.icon, (value) => { this._config[key][i].icon = value; this._emit(); }));
-          for (const [actionField, actionLabel] of [['action', 'Beim Tippen'], ['hold_action', 'Beim Halten']]) {
-            const wrap = el('label','field'); wrap.append(el('span','',actionLabel));
-            const select = el('select');
-            for (const [value,label] of [['toggle','Umschalten'],['more-info','Details öffnen'],['none','Keine Aktion']]) {
-              if (value === 'toggle' && (key === 'statuses' || !TOGGLE.has(domain(item.entity)))) continue;
-              const option = el('option','',label); option.value = value; select.append(option);
-            }
-            select.value = item[actionField];
-            select.addEventListener('change',() => { this._config[key][i][actionField] = select.value; this._emit(); }); wrap.append(select); body.append(wrap);
-          }
+          const fields = [['action', 'Beim Tippen'], ['hold_action', 'Beim Halten'], ...(key === 'devices' ? [['icon_action', 'Icon antippen'], ['icon_hold_action', 'Icon halten']] : [])];
+          body.append(this._actionsForm(item, fields, key === 'statuses', (values) => {
+            try { const next = clone(this._config); Object.assign(next[key][i], values); this._config = normalize(next); this._emit(); }
+            catch (error) { message.textContent = error.message; }
+          }));
+          this._labelsEditor(body, key, i);
           const bar = el('div','toolbar');
           bar.append(this._button('Nach oben',() => this._move(key,i,i-1),i===0),this._button('Nach unten',() => this._move(key,i,i+1),i===this._config[key].length-1),this._button('Entfernen',() => { this._config[key].splice(i,1); this._emit(); this._render(); }));
           body.append(bar); section.append(entry);

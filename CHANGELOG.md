@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.3
+
+- Companion-App bei maximal 600 px: Überschrift oben, Subbuttons darunter über volle Breite, gleichmäßige Buttons mit mindestens 38 px Höhe, keine Kopf-Trennlinie.
+- Geräteaktionen einschließlich Dienstaufrufen und lokaler Navigation im nativen HA-Aktionseditor.
+- Unabhängige Tipp- und Halteaktionen für Geräteicons, ohne verschachtelte Buttons.
+- Optionale Subbutton-Farbregeln nach Entitätszustand mit Farbauswahl und Deckkraft im Editor.
+- Eigene Statustexte für Geräte und Sensoren im Editor; Bewegungs-/Rauch-/Türsensoren berücksichtigen ihre device_class.
+- Bisherige Aktionskurzformen bleiben kompatibel; card-mod und persönliche Zuordnungen bleiben erhalten.
+- Unbeteiligte HA-Zustandsänderungen unterbrechen keine Halteaktionen mehr.
+
+
 ## 0.1.2
 
 - Native HA-Icon-Auswahl mit Suche und Vorschau für Kartenkopf, Geräte, Statusfelder und Subbuttons.
