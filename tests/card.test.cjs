@@ -8,6 +8,7 @@ class Element {
   attachShadow() { return this.shadowRoot=new Element('shadow'); }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children=children; }
+  replaceChild(next,previous) { const index=this.children.indexOf(previous); if(index<0)throw Error('Child missing');this.children[index]=next;return previous; }
   setAttribute(k,v) { this.attributes[k]=v; }
   removeAttribute(k) { delete this.attributes[k]; }
   addEventListener(k,fn) { this.listeners[k]=fn; }
@@ -241,4 +242,24 @@ test('own state text mappings can be edited without dropping extra configuration
   field.children[1].value='on';field.children[1].listeners.change();
   const label=all(editor.shadowRoot).find(n=>n.tagName==='label' && n.children[0]?.textContent==='Anzeigetext');label.children[1].value='Erkannt';label.children[1].listeners.change();
   assert.equal(editor.events.at(-1).detail.config.statuses[0].state_labels.on,'Erkannt');assert.equal(editor._config.card_mod.style,'keep');
+});
+
+test('card-mod nodes and ha-card survive repeated relevant state updates',()=>{
+  const {card,hass}=setup();card.setConfig({name:'Room',devices:['light.test'],statuses:['sensor.test']});
+  const boundary=card._cardElement;
+  const externalStyle=new Element('style');externalStyle.textContent='.title{color:green}';card.shadowRoot.append(externalStyle);
+  const externalMod=new Element('card-mod');boundary.append(externalMod);
+  for(let i=0;i<10;i++){
+    const oldContent=card._content;
+    card.hass={...hass,states:{...hass.states,'sensor.test':{...hass.states['sensor.test'],state:String(i)}}};
+    assert.equal(card._cardElement,boundary);assert.ok(card.shadowRoot.children.includes(externalStyle));assert.ok(boundary.children.includes(externalMod));assert.notEqual(card._content,oldContent);
+    const tile=all(card._content).find(n=>n.dataset.entity==='sensor.test');assert.equal(all(tile).find(n=>n.className==='state').textContent,`${i} °C`);
+  }
+});
+test('configuration edits and service actions keep externally injected styling',async()=>{
+  const {card}=setup();card.setConfig({name:'Before',devices:['light.test']});
+  const boundary=card._cardElement;const style=new Element('card-mod');card.shadowRoot.append(style);
+  const config=JSON.parse(JSON.stringify(card._config));config.name='After';card.setConfig(config);
+  await card._activate(card._config.devices[0]);
+  assert.equal(card._cardElement,boundary);assert.ok(card.shadowRoot.children.includes(style));assert.equal(all(card._content).find(n=>n.className==='title').textContent,'After');
 });

@@ -95,7 +95,15 @@
     .missing,.error{color:var(--error-color,#db4437)}.error{font-size:13px;margin:12px 0 0}.empty{color:var(--room-control-muted,#8293a2);font-size:14px;margin:0}
   `;
   class RoomControlCard extends HTMLElement {
-    constructor() { super(); this.attachShadow({ mode: 'open' }); this._busy = new Set(); this._timers = new Set(); }
+    constructor() {
+      super(); this.attachShadow({ mode: 'open' }); this._busy = new Set(); this._timers = new Set();
+      // Keep the styling boundary stable: card-mod attaches styles/subscriptions here.
+      this._cardStyle = el('style'); this._cardStyle.textContent = css;
+      this._cardElement = el('ha-card');
+      this._content = el('div', 'content');
+      this._cardElement.append(this._content);
+      this.shadowRoot.append(this._cardStyle, this._cardElement);
+    }
     static async getConfigElement() {
       // Loading HA's entities editor also registers ha-form and its lazy selectors.
       if (!customElements.get('ha-form') && window.loadCardHelpers) {
@@ -223,8 +231,7 @@
       for (const timer of this._timers) clearTimeout(timer); this._timers.clear();
       const companion = Boolean(window.webkit?.messageHandlers?.externalBus || window.externalApp?.externalBus || window.externalAppV2?.postMessage);
       if (companion) this.setAttribute('companion', ''); else this.removeAttribute('companion');
-      const style = el('style'); style.textContent = css;
-      const card = el('ha-card');
+      const content = el('div', 'content');
       const heading = el('div', 'heading');
       if (this._config.name || this._config.icon) {
         const header = el('header', 'header'); header.setAttribute('part', 'header');
@@ -233,20 +240,23 @@
         heading.append(header);
       }
       if (this._config.subbuttons.length) heading.append(this._subbuttons());
-      if (heading.children.length) card.append(heading);
+      if (heading.children.length) content.append(heading);
       if (this._config.devices.length) {
         const grid = el('div', 'grid devices'); grid.setAttribute('part', 'devices');
-        this._config.devices.forEach((item) => grid.append(this._tile(item, false))); card.append(grid);
+        this._config.devices.forEach((item) => grid.append(this._tile(item, false))); content.append(grid);
       }
       if (this._config.statuses.length) {
         const section = el('section', `statuses${this._config.devices.length ? '' : ' without-devices'}`); section.setAttribute('part', 'statuses');
         section.append(el('h3', 'section-title', 'Status & Sensoren'));
         const grid = el('div', 'grid'); this._config.statuses.forEach((item) => grid.append(this._tile(item, true)));
-        section.append(grid); card.append(section);
+        section.append(grid); content.append(section);
       }
-      if (!this._config.devices.length && !this._config.statuses.length) card.append(el('p', 'empty', 'Geräte und Status / Sensoren im Karteneditor hinzufügen.'));
-      if (this._error) { const error = el('p', 'error', this._error); error.setAttribute('role', 'alert'); card.append(error); }
-      this.shadowRoot.replaceChildren(style, card);
+      if (!this._config.devices.length && !this._config.statuses.length) content.append(el('p', 'empty', 'Geräte und Status / Sensoren im Karteneditor hinzufügen.'));
+      if (this._error) { const error = el('p', 'error', this._error); error.setAttribute('role', 'alert'); content.append(error); }
+      // Replace only nodes owned by this card. Never remove card-mod's nodes,
+      // its live template subscriptions, or the ha-card element it is attached to.
+      this._cardElement.replaceChild(content, this._content);
+      this._content = content;
     }
   }
   class RoomControlCardEditor extends HTMLElement {

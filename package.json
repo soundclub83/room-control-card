@@ -1,6 +1,6 @@
 {
   "name": "room-control-card",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Home Assistant card with devices and read-only statuses, including a visual editor",
   "license": "MIT",

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.4
+
+- Behält ha-card und den Shadow-Root-Inhalt für externe Stile dauerhaft bei.
+- Zustandsänderungen und Bedienaktionen ersetzen nur noch den eigenen Inhaltscontainer.
+- Verhindert dadurch den Verlust von card-mod-Stilen und ihrer Template-Anbindung, etwa bei Anwesenheitsfarben oder Sichtbarkeitsregeln.
+- Persönliche Farb-/Sichtbarkeitsregeln bleiben unverändert in der Dashboard-Konfiguration.
+- Regressionstests für wiederholte Sensorupdates, Konfigurationsänderungen und Serviceaktionen.
+
+
 ## 0.1.3
 
 - Companion-App bei maximal 600 px: Überschrift oben, Subbuttons darunter über volle Breite, gleichmäßige Buttons mit mindestens 38 px Höhe, keine Kopf-Trennlinie.

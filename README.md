@@ -1,6 +1,6 @@
 # Room Control Card
 
-Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.1.3. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
+Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.1.4. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
 
 ## Installation über den Marketplace
 
@@ -143,3 +143,9 @@ Orientiert an der offiziellen [Custom-Card-Schnittstelle](https://contributors.h
 ## Lizenz
 
 MIT, Copyright (c) 2026 soundclub83. Siehe [LICENSE](LICENSE).
+
+## card-mod bei Live-Updates
+
+Ab 0.1.4 bleiben das `ha-card`-Element und externe Knoten im Shadow Root bei Zustandsänderungen erhalten. Die Karte ersetzt ausschließlich ihren eigenen `.content`-Container. So werden von card-mod eingefügte Styles und deren Anbindung nicht bei jedem Update entfernt. Persönliche Templates für Raumfarben, Zahlenformatierung und Sichtbarkeit bleiben weiterhin in der Dashboard-Konfiguration.
+
+Für das Update ist keine Änderung der vorhandenen Kartenkonfiguration erforderlich. Nach Installation der neuen Version die Dashboard-Seite einmal neu öffnen, damit der Browser die neue JavaScript-Version verwendet. Ein HA-Neustart ist nicht erforderlich. Der Fix wurde durch automatisierte Regressionstests geprüft; der Praxistest in HA steht nach Installation noch aus.
