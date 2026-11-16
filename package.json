@@ -1,0 +1,11 @@
+{
+  "name": "room-control-card",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Home Assistant card with devices and read-only statuses, including a visual editor",
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check room-control-card.js",
+    "test": "node --test tests/*.test.cjs"
+  }
+}
