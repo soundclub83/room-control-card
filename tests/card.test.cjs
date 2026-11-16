@@ -95,3 +95,29 @@ test('hold opens details without also triggering tap',async()=>{
   tile.listeners.pointerup();tile.listeners.click();
   assert.equal(calls.length,0);assert.equal(card.events[0].type,'hass-more-info');
 });
+test('editor entries start collapsed and preserve open state on config updates',()=>{
+  const {registry,hass}=setup();const editor=new (registry.get('room-control-card-editor'))();editor.hass=hass;
+  const config={name:'Testraum',devices:['light.test'],statuses:['sensor.test'],card_mod:{style:'ha-card {border-radius:24px;}'}};
+  editor.setConfig(config);
+  let entries=all(editor.shadowRoot).filter(n=>n.tagName==='details');
+  assert.equal(entries.length,2);assert.ok(entries.every(n=>n.open===false));
+  entries[0].open=true;entries[0].listeners.toggle();editor.setConfig(config);
+  entries=all(editor.shadowRoot).filter(n=>n.tagName==='details');assert.equal(entries[0].open,true);assert.equal(entries[1].open,false);
+  assert.equal(editor._config.card_mod.style,config.card_mod.style);
+});
+test('device layout has icon background and compact status layout does not',()=>{
+  const {card}=setup();card.setConfig({devices:['light.test'],statuses:['sensor.test']});
+  const nodes=all(card.shadowRoot);
+  assert.equal(nodes.filter(n=>n.className==='icon-cell').length,1);
+  assert.equal(nodes.find(n=>n.dataset.entity==='light.test').dataset.domain,'light');
+  assert.equal(nodes.find(n=>n.className==='section-title').textContent,'Status & Sensoren');
+});
+test('brightness shown as percent; explicit names and config remain unchanged',()=>{
+  const {card,hass}=setup();hass.states['light.test'].attributes.brightness=128;
+  const config={name:'Testraum',devices:[{entity:'light.test',name:'Nanoleaf',action:'more-info',hold_action:'more-info'}],statuses:['sensor.test']};
+  const original=JSON.stringify(config);card.setConfig(config);
+  const device=all(card.shadowRoot).find(n=>n.dataset.entity==='light.test');
+  assert.equal(all(device).find(n=>n.className==='state').textContent,'50 %');
+  assert.equal(all(device).find(n=>n.className==='name').textContent,'Nanoleaf');
+  assert.equal(JSON.stringify(config),original);
+});

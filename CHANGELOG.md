@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+- Standarddarstellung an die vorhandenen Raumkarten angepasst: Verlauf, 24-px-Rahmen, Titel mit Trennlinie, kompakte Geräte- und Statuskacheln.
+- Geräte mit Icon-Hintergrund, Lichtzustände goldfarben und andere aktive Geräte blau; aktive Statusanzeigen grün.
+- Helligkeit eingeschalteter Lampen als Prozentwert.
+- Einstellungen pro Gerät und Statusfeld aufklappbar; Name und Entität bleiben in der Übersicht sichtbar.
+- Bestehende Konfiguration, Aktionen und card-mod bleiben erhalten.
+
 ## 0.1.0
 
 - Raum-/Abschnittsname und optionales Icon.

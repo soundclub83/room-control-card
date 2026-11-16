@@ -41,18 +41,21 @@
   }
   function icon(value) { const node = el('ha-icon', 'icon'); node.setAttribute('icon', value); return node; }
   const css = `
-    :host{display:block;color:var(--primary-text-color)} *{box-sizing:border-box}
-    ha-card{padding:var(--room-control-padding,16px);border-radius:var(--room-control-radius,var(--ha-card-border-radius,16px));background:var(--room-control-background,var(--ha-card-background,var(--card-background-color)));overflow:hidden}
-    .header{display:flex;align-items:center;gap:12px;margin:0 0 16px}.title{font-size:var(--room-control-title-size,22px);font-weight:600;margin:0;overflow-wrap:anywhere}
+    :host{display:block;color:var(--room-control-text,#d5dee6)}*{box-sizing:border-box}
+    ha-card{padding:var(--room-control-padding,12px);border-radius:var(--room-control-radius,24px);background:var(--room-control-background,linear-gradient(145deg,rgba(37,53,65,.75),rgba(22,34,44,.94)));border:1px solid rgba(155,180,200,.10);box-shadow:0 6px 24px rgba(0,0,0,.10);overflow:hidden}
+    .header{display:flex;align-items:center;gap:16px;min-height:38px;margin:0 8px 16px}.header::after{content:"";height:2px;min-width:16px;flex:1;border-radius:999px;background:var(--room-control-header-line,linear-gradient(90deg,rgba(255,170,80,.65),rgba(255,170,80,.18)))}
+    .title{font-size:var(--room-control-title-size,22px);font-weight:700;letter-spacing:.04em;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.header>.icon{--mdc-icon-size:24px;color:var(--room-control-text,#d5dee6)}
     .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--room-control-gap,8px)}
-    .item{display:flex;align-items:center;gap:10px;min-width:0;width:100%;text-align:start;color:inherit;background:var(--room-control-item-background,rgba(127,127,127,.07));border:1px solid var(--divider-color);border-radius:var(--room-control-item-radius,12px);padding:12px;font:inherit;min-height:70px}
-    button.item{cursor:pointer}button.item:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}button:disabled{cursor:default;opacity:.55}
-    .icon{flex:none;--mdc-icon-size:24px}.text{min-width:0}.name{font-weight:500;overflow-wrap:anywhere}.state{font-size:13px;color:var(--secondary-text-color);margin-top:3px;overflow-wrap:anywhere}
-    .active .icon{color:var(--room-control-active-color,var(--state-active-color,var(--primary-color)))}
-    .statuses{margin-top:16px;padding-top:12px;border-top:1px solid var(--divider-color)}.statuses:first-child{margin-top:0;padding-top:0;border-top:0}
-    .section-title{font-size:12px;font-weight:600;color:var(--secondary-text-color);margin:0 0 10px;text-transform:uppercase;letter-spacing:.06em}
-    .status{min-height:56px;padding:10px}.missing,.error{color:var(--error-color,#db4437)}.error{font-size:13px;margin:12px 0 0}.empty{color:var(--secondary-text-color);font-size:14px;margin:0}
-    @media(max-width:350px){.grid{grid-template-columns:1fr}}
+    .item{display:flex;align-items:center;gap:10px;min-width:0;width:100%;text-align:start;color:var(--room-control-text,#d5dee6);background:var(--room-control-item-background,rgba(145,165,185,.055));border:1px solid rgba(150,170,185,.08);border-radius:var(--room-control-item-radius,16px);padding:10px 12px;font:inherit;height:64px;box-shadow:none;transition:background .2s ease,border-color .2s ease;touch-action:manipulation}
+    button.item{cursor:pointer}button.item:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}button:disabled{cursor:default;opacity:.5}
+    .icon{flex:none;--mdc-icon-size:23px;color:var(--room-control-muted,#8d9ba7)}.icon-cell{display:flex;align-items:center;justify-content:center;flex:none;width:34px;height:38px;border-radius:11px;background:rgba(145,165,185,.07)}
+    .text{min-width:0;flex:1}.name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.state{font-size:11px;color:var(--room-control-muted,#8293a2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .device{--active-rgb:130,184,231;--active-color:#82b8e7}.device[data-domain="light"]{--active-rgb:237,196,122;--active-color:#edc47a}
+    .device.active{background:rgba(var(--active-rgb),.11);border-color:rgba(var(--active-rgb),.23)}.device.active .icon,.device.active .state{color:var(--room-control-active-color,var(--active-color))}.device.active .icon-cell{background:rgba(var(--active-rgb),.13)}
+    .statuses{margin-top:16px;padding-top:12px;border-top:1px solid rgba(145,170,190,.12)}.statuses.without-devices{margin-top:0;padding-top:0;border-top:0}
+    .section-title{font-size:9px;font-weight:600;color:var(--room-control-muted,#8095a5);margin:0 2px 10px;text-transform:uppercase;letter-spacing:.12em}
+    .status{height:46px;padding:8px 10px;gap:7px;border-radius:12px;background:rgba(135,160,180,.035);border-color:rgba(145,170,190,.045)}.status>.icon{width:22px;--mdc-icon-size:17px;color:#8194a3}.status .name{font-size:10px;font-weight:500;color:var(--room-control-status-name,#6cdbc9)}.status .state{font-size:12px;font-weight:500;margin-top:0;color:#c9d6df}.status.active .icon,.status.active .state{color:var(--room-control-status-active,#7cd7b4)}
+    .missing,.error{color:var(--error-color,#db4437)}.error{font-size:13px;margin:12px 0 0}.empty{color:var(--room-control-muted,#8293a2);font-size:14px;margin:0}
   `;
   class RoomControlCard extends HTMLElement {
     constructor() { super(); this.attachShadow({ mode: 'open' }); this._busy = new Set(); }
@@ -62,8 +65,9 @@
     set hass(value) { this._hass = value; this._render(); }
     getCardSize() { return 1 + Math.ceil((this._config?.devices.length || 0) / 2) + Math.ceil((this._config?.statuses.length || 0) / 2); }
     getGridOptions() { return { columns: 12, min_columns: 6, rows: 'auto' }; }
-    _state(state) {
+    _state(state, status = false) {
       if (!state) return 'Entität nicht gefunden';
+      if (!status && domain(state.entity_id || '') === 'light' && state.state === 'on' && Number.isFinite(state.attributes.brightness)) return `${Math.round(state.attributes.brightness / 2.55)} %`;
       if (this._hass.formatEntityState) return this._hass.formatEntityState(state);
       return `${state.state}${state.attributes.unit_of_measurement ? ' ' + state.attributes.unit_of_measurement : ''}`;
     }
@@ -82,8 +86,9 @@
     _tile(item, status) {
       const state = this._hass.states[item.entity];
       const interactive = item.action !== 'none' || item.hold_action !== 'none';
-      const tile = el(interactive ? 'button' : 'div', `item ${status ? 'status' : 'device'}${state?.state === 'on' ? ' active' : ''}${!state ? ' missing' : ''}`);
+      const tile = el(interactive ? 'button' : 'div', `item ${status ? 'status' : 'device'}${['on', 'playing', 'cleaning', 'run'].includes(state?.state) ? ' active' : ''}${!state ? ' missing' : ''}`);
       tile.dataset.entity = item.entity;
+      tile.dataset.domain = domain(item.entity);
       tile.setAttribute('part', status ? 'status' : 'device');
       if (interactive) {
         tile.type = 'button';
@@ -105,9 +110,11 @@
         });
       }
       const fallback = ({ light: 'mdi:lightbulb', switch: 'mdi:power-socket-eu', fan: 'mdi:fan', lock: 'mdi:lock', binary_sensor: 'mdi:checkbox-marked-circle-outline', sensor: 'mdi:gauge', media_player: 'mdi:television' })[domain(item.entity)] || 'mdi:circle-outline';
-      tile.append(icon(item.icon || state?.attributes.icon || fallback));
+      const glyph = icon(item.icon || state?.attributes.icon || fallback);
+      if (status) tile.append(glyph);
+      else { const cell = el('span', 'icon-cell'); cell.append(glyph); tile.append(cell); }
       const text = el('div', 'text');
-      text.append(el('div', 'name', item.name || state?.attributes.friendly_name || item.entity), el('div', 'state', this._state(state)));
+      text.append(el('div', 'name', item.name || state?.attributes.friendly_name || item.entity), el('div', 'state', this._state(state, status)));
       tile.append(text);
       return tile;
     }
@@ -126,8 +133,8 @@
         this._config.devices.forEach((item) => grid.append(this._tile(item, false))); card.append(grid);
       }
       if (this._config.statuses.length) {
-        const section = el('section', 'statuses'); section.setAttribute('part', 'statuses');
-        section.append(el('h3', 'section-title', 'Status / Sensoren'));
+        const section = el('section', `statuses${this._config.devices.length ? '' : ' without-devices'}`); section.setAttribute('part', 'statuses');
+        section.append(el('h3', 'section-title', 'Status & Sensoren'));
         const grid = el('div', 'grid'); this._config.statuses.forEach((item) => grid.append(this._tile(item, true)));
         section.append(grid); card.append(section);
       }
@@ -137,7 +144,7 @@
     }
   }
   class RoomControlCardEditor extends HTMLElement {
-    constructor() { super(); this.attachShadow({ mode: 'open' }); this._listId = `rcc-${Math.random().toString(36).slice(2)}`; }
+    constructor() { super(); this.attachShadow({ mode: 'open' }); this._listId = `rcc-${Math.random().toString(36).slice(2)}`; this._openEntries = new Set(); }
     setConfig(config) { this._config = normalize(config); this._render(); }
     set hass(value) {
       const changed = !this._hass || Object.keys(value.states).join() !== Object.keys(this._hass.states).join();
@@ -160,7 +167,7 @@
     }
     _render() {
       if (!this._config) return;
-      const style = el('style'); style.textContent = `:host{display:block;color:var(--primary-text-color)}*{box-sizing:border-box}.field{display:grid;gap:5px;margin:10px 0;font-size:14px}input,select,button{font:inherit;color:var(--primary-text-color);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#888);border-radius:6px;padding:9px;max-width:100%}input{width:100%}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--primary-color)}fieldset{border:1px solid var(--divider-color,#888);border-radius:8px;margin:16px 0;padding:12px;min-width:0}.entry{border-top:1px solid var(--divider-color,#888);padding:8px 0}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.hint{font-size:13px;color:var(--secondary-text-color)}.error{color:var(--error-color,#db4437)}`;
+      const style = el('style'); style.textContent = `:host{display:block;color:var(--primary-text-color)}*{box-sizing:border-box}.field{display:grid;gap:5px;margin:10px 0;font-size:14px}input,select,button{font:inherit;color:var(--primary-text-color);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#888);border-radius:6px;padding:9px;max-width:100%}input{width:100%}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--primary-color)}fieldset{border:1px solid var(--divider-color,#888);border-radius:8px;margin:16px 0;padding:12px;min-width:0}.entry{border:1px solid var(--divider-color,#888);border-radius:10px;margin:8px 0;background:rgba(127,127,127,.04);overflow:hidden}.entry[open]{background:rgba(127,127,127,.09);border-color:var(--primary-color)}summary{cursor:pointer;padding:12px;font-weight:600;overflow-wrap:anywhere}summary:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.entry-id{display:block;font-size:12px;font-weight:400;color:var(--secondary-text-color);padding:4px 0 0 18px}.entry-body{padding:0 12px 12px;border-top:1px solid var(--divider-color,#888)}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.hint{font-size:13px;color:var(--secondary-text-color)}.error{color:var(--error-color,#db4437)}`;
       const root = el('div');
       for (const [key, label] of [['name', 'Raum-/Abschnittsname'], ['icon', 'Icon (optional, z. B. mdi:sofa)']]) root.append(this._field(label, this._config[key], (value) => { this._config[key] = value; this._emit(); }));
       const list = el('datalist'); list.id = this._listId;
@@ -172,8 +179,14 @@
         const section = el('fieldset'); section.append(el('legend', '', title));
         section.append(el('p', 'hint', key === 'devices' ? 'Licht, Schalter und Ventilatoren können umgeschaltet werden. Andere Geräte öffnen ihre Details.' : 'Keine Schaltaktionen. Details öffnen oder keine Aktion sind pro Feld einstellbar.'));
         this._config[key].forEach((item, i) => {
-          const entry = el('div', 'entry');
-          entry.append(this._field('Entität', item.entity, (value) => {
+          const entry = el('details', 'entry');
+          const entryKey = `${key}:${i}`;
+          entry.open = this._openEntries.has(entryKey);
+          entry.addEventListener('toggle', () => { if (entry.open) this._openEntries.add(entryKey); else this._openEntries.delete(entryKey); });
+          const summary = el('summary', '', item.name || this._hass?.states[item.entity]?.attributes.friendly_name || item.entity);
+          summary.append(el('span', 'entry-id', item.entity));
+          const body = el('div', 'entry-body'); entry.append(summary, body);
+          body.append(this._field('Entität', item.entity, (value) => {
             try {
               const next = clone(this._config); next[key][i].entity = value;
               if (key === 'devices' && !TOGGLE.has(domain(value))) {
@@ -183,8 +196,8 @@
               this._config = normalize(next); this._emit(); this._render();
             } catch (error) { message.textContent = error.message; }
           }, this._listId));
-          const message = el('div', 'error'); message.setAttribute('role','alert'); entry.append(message);
-          for (const [field,label] of [['name','Anzeigename (optional)'],['icon','Icon (optional)']]) entry.append(this._field(label,item[field],(value) => { this._config[key][i][field] = value; this._emit(); }));
+          const message = el('div', 'error'); message.setAttribute('role','alert'); body.append(message);
+          for (const [field,label] of [['name','Anzeigename (optional)'],['icon','Icon (optional)']]) body.append(this._field(label,item[field],(value) => { this._config[key][i][field] = value; this._emit(); this._render(); }));
           for (const [actionField, actionLabel] of [['action', 'Beim Tippen'], ['hold_action', 'Beim Halten']]) {
             const wrap = el('label','field'); wrap.append(el('span','',actionLabel));
             const select = el('select');
@@ -193,11 +206,11 @@
               const option = el('option','',label); option.value = value; select.append(option);
             }
             select.value = item[actionField];
-            select.addEventListener('change',() => { this._config[key][i][actionField] = select.value; this._emit(); }); wrap.append(select); entry.append(wrap);
+            select.addEventListener('change',() => { this._config[key][i][actionField] = select.value; this._emit(); }); wrap.append(select); body.append(wrap);
           }
           const bar = el('div','toolbar');
           bar.append(this._button('Nach oben',() => this._move(key,i,i-1),i===0),this._button('Nach unten',() => this._move(key,i,i+1),i===this._config[key].length-1),this._button('Entfernen',() => { this._config[key].splice(i,1); this._emit(); this._render(); }));
-          entry.append(bar); section.append(entry);
+          body.append(bar); section.append(entry);
         });
         section.append(this._field('Entität hinzufügen', '', (value) => {
           try {
