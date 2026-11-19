@@ -1,6 +1,6 @@
 # Room Control Card
 
-Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.1.4. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
+Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.2.0. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
 
 ## Installation über den Marketplace
 
@@ -149,3 +149,55 @@ MIT, Copyright (c) 2026 soundclub83. Siehe [LICENSE](LICENSE).
 Ab 0.1.4 bleiben das `ha-card`-Element und externe Knoten im Shadow Root bei Zustandsänderungen erhalten. Die Karte ersetzt ausschließlich ihren eigenen `.content`-Container. So werden von card-mod eingefügte Styles und deren Anbindung nicht bei jedem Update entfernt. Persönliche Templates für Raumfarben, Zahlenformatierung und Sichtbarkeit bleiben weiterhin in der Dashboard-Konfiguration.
 
 Für das Update ist keine Änderung der vorhandenen Kartenkonfiguration erforderlich. Nach Installation der neuen Version die Dashboard-Seite einmal neu öffnen, damit der Browser die neue JavaScript-Version verwendet. Ein HA-Neustart ist nicht erforderlich. Der Fix wurde durch automatisierte Regressionstests geprüft; der Praxistest in HA steht nach Installation noch aus.
+
+
+## Heating Control Card und Fan Control Card (ab 0.2.0)
+
+Beide Kartentypen sind in derselben `room-control-card.js` enthalten. Das bestehende Marketplace-Repository und die vorhandene Ressource bleiben bestehen. Nach Installation des Updates sind beide im Kartenwähler verfügbar. Bestehende Room Control Cards bleiben unverändert.
+
+### Heizung
+
+`custom:heating-control-card` enthält einen Raumkopf, ein oder zwei nebeneinander angeordnete Fensterkontakte, Raumtemperatur und Luftfeuchtigkeit, einen nativen HA-Statistikgraphen sowie ein oder zwei native HA-Thermostate. Der jeweilige PI Heating Demand steht direkt unter seinem Thermostat. Bei einer `number`/`input_number` bleibt der Wert über einen nativen Schieberegler bedienbar; bei einem Sensor wird er angezeigt. Details sind über die native Kachel erreichbar. Thermostate und Graph bleiben bei Zustandsänderungen bestehen.
+
+Im visuellen Editor: Name und Icon, Temperatur-/Feuchtesensor, Diagrammzeitraum und optionale Achsengrenzen einstellen; Fenster und Heizungen einzeln hinzufügen oder entfernen. Pro Heizung ihre PI-Entität auswählen. Ohne zweite Entität nutzt das Element die volle Breite. Fenster und Heizungen sind unabhängig voneinander auf höchstens zwei begrenzt. Leere optionale Felder können entfernt werden.
+
+```yaml
+type: custom:heating-control-card
+name: Raum
+icon: mdi:sofa
+windows:
+  - entity: binary_sensor.raum_fenster
+    name: Fenster
+temperature: sensor.raum_temperatur
+humidity: sensor.raum_luftfeuchtigkeit
+days_to_show: 2
+heaters:
+  - entity: climate.raum_heizung
+    name: Heizung
+    demand: number.raum_pi_heating_demand
+```
+
+### Lüftung
+
+`custom:fan-control-card` ist eine eigene Karte mit An, Aus, Geschwindigkeitsregler und optionalem Lock-Button. Im visuellen Editor Ventilator und bei Bedarf einen `input_boolean` oder `switch` als Lock-Entität auswählen. Das Entfernen dieser Auswahl blendet Lock aus. Der Lock-Button schaltet ausschließlich diese Entität; er sperrt nicht selbst die Lüfterbedienung und verändert keine vorhandene Automationslogik.
+
+Die Einschaltgeschwindigkeit (Standard 50 %) und eine optionale Voreinstellung sind im Editor einstellbar. Eine Voreinstellung wird nur gesendet, wenn der Ventilator sie meldet; Geschwindigkeit nur bei unterstützter Geschwindigkeitssteuerung. Der Regler sendet erst beim Loslassen. Nicht verfügbare Entitäten sind nicht bedienbar, Dienstfehler erscheinen auf der Karte.
+
+```yaml
+type: custom:fan-control-card
+name: Raum Lüftung
+entity: fan.raum
+lock_entity: input_boolean.raum_lufter_lock
+on_percentage: 50
+preset_mode: Normal
+```
+
+### Gestaltung und Betrieb
+
+Die wiederkehrende Gestaltung liegt im Kartencode, nicht als wiederholte Dashboard-Templates. Allgemeine Text- und Akzentwerte folgen dem Theme. Lokale CSS-Variablen `climate-control-background`, `climate-control-radius`, `climate-control-item-background` und `climate-control-label` erlauben eigene Anpassungen. `card_mod` kann zusätzlich am stabilen äußeren `ha-card` eingesetzt werden; für die Grundfunktion wird es nicht benötigt. Die beiden neuen Karten benötigen weder Mushroom noch Button Card oder Slider Button Card. Statistikgraph, Thermostate und PI-Kachel sind native HA-Karten. Es gibt keine eigenen Polling-Timer oder serverseitigen Templates.
+
+Das Update verändert keine Dashboard-Konfiguration automatisch. Bestehende Räume erst nach Installation der neuen Version ersetzen und vorher sichern. Pflanzen- und Wetterkarten gehören nicht zu dieser Änderung.
+
+Geprüft: bestehende 32 Tests und sechs neue Tests für Zuordnung/Ladereihenfolge, stabile Elemente, veraltete Ladevorgänge, Aktionen, Fehler, Validierung und Editoränderungen. Live-Darstellung und Gerätebedienung sind erst nach Installation zu prüfen; Tests lösen keine echten Geräteaktionen aus.
+
+Quellen: [HA Custom Cards](https://contributors.home-assistant.io/frontend/custom-ui/card/), [native Kartenfunktionen](https://www.home-assistant.io/dashboards/features/).

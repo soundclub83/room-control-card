@@ -1,3 +1,11 @@
+# 0.2.0
+
+- Neue Heating Control Card: bis zu zwei Fenster, Raumtemperatur/-feuchte, nativer Statistikgraph, bis zu zwei native Thermostate mit jeweils zugeordnetem PI Heating Demand.
+- Separate Fan Control Card: An/Aus, Geschwindigkeit und optionaler Lock-Schalter, über GUI konfigurierbar.
+- Native HA-Unterkarten bleiben bei Zustandsänderungen stabil; keine wiederholten Dashboard-Templates nötig.
+- Bestehende Room Control Card unverändert. Kein automatischer Austausch bestehender Dashboard-Konfigurationen.
+- 32 bestehende und sechs neue Funktionstests bestanden. Live-Prüfung nach Installation ausstehend.
+
 # Changelog
 
 ## 0.1.4
