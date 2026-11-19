@@ -1,6 +1,6 @@
 # Room Control Card
 
-Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.2.1. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
+Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.2.2. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
 
 ## Installation über den Marketplace
 
@@ -181,7 +181,7 @@ heaters:
 
 `custom:fan-control-card` ist eine eigene Karte mit An, Aus, Geschwindigkeitsregler und optionalem Lock-Button. Im visuellen Editor Ventilator und bei Bedarf einen `input_boolean` oder `switch` als Lock-Entität auswählen. Das Entfernen dieser Auswahl blendet Lock aus. Der Lock-Button schaltet ausschließlich diese Entität; er sperrt nicht selbst die Lüfterbedienung und verändert keine vorhandene Automationslogik.
 
-Die Einschaltgeschwindigkeit (Standard 50 %) und eine optionale Voreinstellung sind im Editor einstellbar. Eine Voreinstellung wird nur gesendet, wenn der Ventilator sie meldet; Geschwindigkeit nur bei unterstützter Geschwindigkeitssteuerung. Der Regler sendet erst beim Loslassen. Nicht verfügbare Entitäten sind nicht bedienbar, Dienstfehler erscheinen auf der Karte.
+Die Einschaltgeschwindigkeit (Standard 50 %) und eine optionale Voreinstellung sind im Editor einstellbar. Eine Voreinstellung wird nur gesendet, wenn der Ventilator sie meldet; Geschwindigkeit nur bei unterstützter Geschwindigkeitssteuerung. Die Geschwindigkeitsregelung verwendet die native HA-Kachel mit `fan-speed`, optisch passend zur PI-Kachel. Nicht verfügbare Entitäten sind nicht bedienbar, Dienstfehler erscheinen auf der Karte.
 
 ```yaml
 type: custom:fan-control-card

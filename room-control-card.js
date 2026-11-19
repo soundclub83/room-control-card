@@ -767,50 +767,15 @@
           (s) => s?.state === 'on',
           c.lock_entity,
         );
-      const control = node('div', 'control'),
-        toggle = node('button', 'demand'),
-        slider = node('input'),
-        value = node('span');
-      toggle.type = 'button';
-      toggle.setAttribute('aria-label', 'Ventilator umschalten');
-      toggle.append(icon('mdi:fan'));
-      toggle.style.width = '46px';
-      toggle.addEventListener('click', () =>
-        this._service('fan', 'toggle', { entity_id: c.entity }, c.entity),
-      );
-      slider.type = 'range';
-      slider.min = '0';
-      slider.max = '100';
-      slider.setAttribute('aria-label', 'Lüftergeschwindigkeit');
-      slider.addEventListener('input', () => {
-        this._dragging = true;
-        value.textContent = slider.value + ' %';
-      });
-      slider.addEventListener('change', () => {
-        this._dragging = false;
-        this._service(
-          'fan',
-          'set_percentage',
-          { entity_id: c.entity, percentage: Number(slider.value) },
-          c.entity,
-        );
-      });
-      slider.addEventListener('blur', () => {
-        this._dragging = false;
-        this._update();
-      });
-      control.append(toggle, slider, value);
+      const control = node('div', 'fan-speed-slot');
       this._content.append(control);
-      this._updates.push(() => {
-        const s = this._hass?.states[c.entity];
-        toggle.disabled = !!this._busy || !available(s);
-        slider.disabled = !!this._busy || !available(s) || !((s?.attributes.supported_features || 0) & 1);
-        slider.step = String(s?.attributes.percentage_step || 1);
-        if (!this._dragging) {
-          slider.value = String(s?.attributes.percentage || 0);
-          value.textContent = available(s) ? slider.value + ' %' : 'Nicht verfügbar';
-        }
-      });
+      if (c.entity) this._child(control, {
+        type: 'tile', entity: c.entity, name: 'Lüftergeschwindigkeit', icon: 'mdi:fan',
+        state_content: ['percentage'],
+        tap_action: { action: 'more-info' }, icon_tap_action: { action: 'toggle' },
+        features: [{ type: 'fan-speed' }],
+      }, this._generation);
+
     }
   }
   class Heating extends Base {

@@ -1,3 +1,8 @@
+# 0.2.2
+
+- Lüftergeschwindigkeit verwendet dieselbe native HA-Kachel und Slider-Darstellung wie PI Heating Demand.
+- An/Aus und optionaler Lock bleiben unverändert; Klick auf das Lüftericon schaltet, Klick auf die Kachel öffnet Details.
+
 # 0.2.1
 
 - Temperaturgraph erhält vor dem Nachladen einen festen Platz vor dem Heizungsbereich.

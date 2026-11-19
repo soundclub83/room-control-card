@@ -60,3 +60,9 @@ test('temperature graph keeps its position above heating after delayed loading',
  assert.deepEqual(c._content.children.map(x=>x.className),before);
  const slot=all(c.shadowRoot).find(x=>x.className==='thermostat-slot');assert.equal(slot.children[0].config.entity,'climate.one');
 });
+test('fan speed uses the native tile slider while preserving the separate action buttons',async()=>{
+ const s=setup(),c=s.card('fan-control-card');c.hass=s.hass;c.setConfig({entity:'fan.test',lock_entity:'input_boolean.lock'});await flush();
+ const tile=s.configs.find(x=>x.type==='tile');assert.equal(tile.entity,'fan.test');assert.equal(tile.features[0].type,'fan-speed');assert.equal(tile.icon_tap_action.action,'toggle');assert.equal(tile.tap_action.action,'more-info');
+ assert.equal(all(c.shadowRoot).filter(e=>e.tagName==='input').length,0);
+ assert.equal(all(c.shadowRoot).filter(e=>e.tagName==='button').length,3);
+});
