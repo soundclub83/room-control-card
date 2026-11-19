@@ -53,3 +53,10 @@ test('validation limits each row to two and rejects incompatible domains',()=>{
 test('fan editor retains earlier field changes and optional lock can be cleared',()=>{
  const s=setup(),e=new (s.registry.get('fan-control-card-editor'))();e.setConfig({type:'custom:fan-control-card',entity:'fan.test'});let f=e._forms[0];f.listeners['value-changed']({stopPropagation(){},detail:{value:{entity:'fan.test',name:'Raum'}}});f.listeners['value-changed']({stopPropagation(){},detail:{value:{entity:'fan.test',name:'Raum',lock_entity:'input_boolean.lock'}}});assert.equal(e._config.name,'Raum');assert.equal(e._config.lock_entity,'input_boolean.lock');
 });
+test('temperature graph keeps its position above heating after delayed loading',async()=>{
+ const s=setup(true),c=s.card('heating-control-card');c.setConfig({temperature:'sensor.temp',heaters:['climate.one']});
+ const before=c._content.children.map(x=>x.className);assert.ok(before.indexOf('graph-slot')<before.indexOf('label'));
+ s.pending.reverse().forEach(f=>f());await flush();assert.equal(c._content.children.find(x=>x.className==='graph-slot').children[0].config.type,'statistics-graph');
+ assert.deepEqual(c._content.children.map(x=>x.className),before);
+ const slot=all(c.shadowRoot).find(x=>x.className==='thermostat-slot');assert.equal(slot.children[0].config.entity,'climate.one');
+});

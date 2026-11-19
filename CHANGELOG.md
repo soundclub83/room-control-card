@@ -1,3 +1,10 @@
+# 0.2.1
+
+- Temperaturgraph erhält vor dem Nachladen einen festen Platz vor dem Heizungsbereich.
+- Heizspalten und native Unterkarten auf die verfügbare Breite begrenzt; Thermostate erhalten wieder 248 px Höhe.
+- Zusätzlicher Regressionstest für Graphposition nach asynchronem Laden.
+- Live-Austausch von 0.2.0 wegen Darstellungsfehlern zurückgenommen; bestehende Heizbereiche wiederhergestellt.
+
 # 0.2.0
 
 - Neue Heating Control Card: bis zu zwei Fenster, Raumtemperatur/-feuchte, nativer Statistikgraph, bis zu zwei native Thermostate mit jeweils zugeordnetem PI Heating Demand.
