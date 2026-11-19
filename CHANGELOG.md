@@ -1,3 +1,9 @@
+# 0.2.3
+
+- Lüfterregler verwenden im ausgeschalteten und eingeschalteten Zustand dieselbe Grundfarbe wie die PI-Heating-Demand-Kacheln.
+- Hintergrund bleibt bei 0 % blau getönt; aktive Füllung folgt derselben Farbe statt der nativen türkisfarbenen Lüfter-Zustandsfarbe.
+- Farben ausschließlich auf die Geschwindigkeitskachel begrenzt; An/Aus/Lock und Thermostate unverändert.
+
 # 0.2.2
 
 - Lüftergeschwindigkeit verwendet dieselbe native HA-Kachel und Slider-Darstellung wie PI Heating Demand.

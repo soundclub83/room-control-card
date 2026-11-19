@@ -1,6 +1,6 @@
 # Room Control Card
 
-Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.2.2. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
+Eine Home-Assistant-Dashboard-Karte für einen Raum oder Abschnitt: **Name, Geräte und Status / Sensoren gemeinsam in einer Karte**, mit visuellem Editor. Version 0.2.3. Optionale Subbuttons im Kartenkopf, kein zusätzliches Theme und keine fest eingebauten persönlichen Entitäten.
 
 ## Installation über den Marketplace
 
@@ -201,3 +201,5 @@ Das Update verändert keine Dashboard-Konfiguration automatisch. Bestehende Räu
 Geprüft: bestehende 32 Tests und sechs neue Tests für Zuordnung/Ladereihenfolge, stabile Elemente, veraltete Ladevorgänge, Aktionen, Fehler, Validierung und Editoränderungen. Live-Darstellung und Gerätebedienung sind erst nach Installation zu prüfen; Tests lösen keine echten Geräteaktionen aus.
 
 Quellen: [HA Custom Cards](https://contributors.home-assistant.io/frontend/custom-ui/card/), [native Kartenfunktionen](https://www.home-assistant.io/dashboards/features/).
+
+Ab 0.2.3 übernimmt die Lüfter-Geschwindigkeitskachel für beide Zustände lokal `--state-icon-color`, wie die PI-Kacheln. Dadurch bleiben Spur und Füllung einheitlich; die An/Aus/Lock-Farben sind davon unabhängig.
